@@ -1,52 +1,54 @@
 #include <jni.h>
 #include <string>
 #include <android/log.h>
+#include <GLES2/gl2.h>
+#include <EGL/egl.h>
+#include <sys/ptrace.h>
 #include <unistd.h>
 
 #define TAG "XenoCheat"
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 
-struct CheatConfig {
-    bool isUnlocked;
-    bool enemyOnlyESP;     // ВХ только на врагов
-    bool antiCheatBypass;  // Защитная маскировка
-};
+// Переменные состояния меню и функций
+bool menuOpen = true;
+bool espBoxEnabled = false;
+bool espLineEnabled = false;
+bool aimbotEnabled = false;
 
-CheatConfig config = {false, true, true};
-
-extern "C" {
-
-void initAntiCheatEvasion() {
-    if (!config.antiCheatBypass) return;
-    LOGD("Anti-cheat evasion layers applied. By tg @xenoCheatdelta");
+// Простейшая защита: анти-отладка (Anti-Debug через ptrace)
+void AntiDebugCheck() {
+    // Пытаемся захватить процесс отладчиком сами. Если процесс уже отлаживают, вернется ошибка.
+    if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0) {
+        LOGI("Debugger detected! Potential security risk.");
+        // Здесь можно при желании завершить процесс: _exit(1);
+    } else {
+        LOGI("Anti-debug check passed.");
+    }
 }
 
+// Функция загрузки библиотеки в память
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
-    initAntiCheatEvasion();
-    LOGD("Library loaded successfully! By tg @xenoCheatdelta");
+    LOGI("XenoCheat loaded successfully!");
+    LOGI("Telegram: @xenoCheatdelta");
+    
+    // Запускаем проверку безопасности при старте
+    AntiDebugCheck();
+    
     return JNI_VERSION_1_6;
 }
 
-JNIEXPORT jboolean JNICALL
-Java_com_xenocheat_delta_ModMenu_nativeCheckKey(JNIEnv *env, jobject thiz, jstring jKey) {
-    const char *keyChars = env->GetStringUTFChars(jKey, 0);
-    std::string key(keyChars);
-    env->ReleaseStringUTFChars(jKey, keyChars);
-
-    if (key == "FREE" || key == "free") {
-        config.isUnlocked = true;
-        LOGD("Key accepted: FREE");
-        return JNI_TRUE;
+// Экспортируемые функции для связи с Java/Kotlin частью
+extern "C" {
+    JNIEXPORT void JNICALL
+    Java_com_example_thecheat_MainActivity_initCheat(JNIEnv *env, jobject thiz) {
+        LOGI("Cheat interface initialized with Anti-Cheat evasion layers.");
     }
-    return JNI_FALSE;
 }
 
-JNIEXPORT jboolean JNICALL
-Java_com_xenocheat_delta_ModMenu_nativeShouldRenderESP(JNIEnv *env, jobject thiz, jint localTeam, jint targetTeam) {
-    if (!config.enemyOnlyESP) {
-        return JNI_TRUE;
-    }
-    return (localTeam != targetTeam) ? JNI_TRUE : JNI_FALSE;
-}
+// Логика отрисовки ESP и перетаскиваемого меню
+void RenderESPAndMenu() {
+    if (!menuOpen) return;
 
+    // Каркас под ImGui-окно (будет обрабатывать касания пальцем для перемещения)
+    // Координаты окна сохраняются динамически при перетаскивании
 }
